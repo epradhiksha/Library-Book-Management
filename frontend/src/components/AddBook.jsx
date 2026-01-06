@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API = "http://localhost:5000/api/books";
+const API = "https://library-book-management-e8rg.onrender.com/api/books";
 
 export default function AddBook() {
   const [book, setBook] = useState({
@@ -23,10 +23,10 @@ export default function AddBook() {
         publishedYear: Number(book.publishedYear),
         availableCopies: Number(book.availableCopies)
       });
-      alert("Book added");
+      alert("Book added successfully");
       window.location.reload();
-    } catch {
-      alert("Invalid data");
+    } catch (error) {
+      alert("Invalid data or server error");
     }
   };
 
