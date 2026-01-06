@@ -1,85 +1,90 @@
-const { ObjectId } = require("mongodb");
-const { getDB } = require("../config/db");
+const Book = require("../models/Book");
 
-const collection = () => getDB().collection("books");
+// GET all books
+exports.getBooks = async (req, res) => {
+  try {
+    const books = await Book.find();
+    res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-// CREATE
+// ADD book
 exports.addBook = async (req, res) => {
-  const book = req.body;
-
-  if (book.availableCopies < 0) {
-    return res.status(400).json({ message: "Negative stock not allowed" });
+  try {
+    const book = new Book(req.body);
+    await book.save();
+    res.status(201).json(book);
+  } catch (error) {
+    console.error(error.message);
+    res.status(400).json({ message: error.message });
   }
-
-  await collection().insertOne(book);
-  res.status(201).json(book);
 };
 
-// READ – all books
-exports.getAllBooks = async (req, res) => {
-  const books = await collection().find().toArray();
-  res.json(books);
-};
-
-// READ – by category
+// FILTER by category
 exports.getByCategory = async (req, res) => {
-  const books = await collection()
-    .find({ category: req.params.category })
-    .toArray();
-  res.json(books);
+  try {
+    const books = await Book.find({ category: req.params.category });
+    res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-// READ – published after 2015
+// AFTER 2015
 exports.getAfter2015 = async (req, res) => {
-  const books = await collection()
-    .find({ publishedYear: { $gt: 2015 } })
-    .toArray();
-  res.json(books);
+  try {
+    const books = await Book.find({ publishedYear: { $gt: 2015 } });
+    res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-// UPDATE – increase/decrease copies
+// UPDATE copies
 exports.updateCopies = async (req, res) => {
-  const { change } = req.body;
-  const book = await collection().findOne({ _id: new ObjectId(req.params.id) });
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-  if (!book) return res.status(404).json({ message: "Book not found" });
+    book.availableCopies += req.body.change;
+    if (book.availableCopies < 0)
+      return res.status(400).json({ message: "Negative stock not allowed" });
 
-  if (book.availableCopies + change < 0) {
-    return res.status(400).json({ message: "Negative stock not allowed" });
+    await book.save();
+    res.json(book);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  await collection().updateOne(
-    { _id: book._id },
-    { $inc: { availableCopies: change } }
-  );
-
-  res.json({ message: "Copies updated" });
 };
 
-// UPDATE – change category
+// UPDATE category
 exports.updateCategory = async (req, res) => {
-  const result = await collection().updateOne(
-    { _id: new ObjectId(req.params.id) },
-    { $set: { category: req.body.category } }
-  );
-
-  if (result.matchedCount === 0) {
-    return res.status(404).json({ message: "Book not found" });
+  try {
+    const book = await Book.findByIdAndUpdate(
+      req.params.id,
+      { category: req.body.category },
+      { new: true }
+    );
+    res.json(book);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  res.json({ message: "Category updated" });
 };
 
-// DELETE – only if copies = 0
+// DELETE book
 exports.deleteBook = async (req, res) => {
-  const book = await collection().findOne({ _id: new ObjectId(req.params.id) });
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-  if (!book) return res.status(404).json({ message: "Book not found" });
+    if (book.availableCopies !== 0)
+      return res.status(400).json({ message: "Copies must be zero to delete" });
 
-  if (book.availableCopies !== 0) {
-    return res.status(400).json({ message: "Cannot delete book with copies" });
+    await book.deleteOne();
+    res.json({ message: "Book deleted" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  await collection().deleteOne({ _id: book._id });
-  res.json({ message: "Book deleted" });
 };
