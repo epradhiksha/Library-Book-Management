@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API = "https://library-book-management-hzzz.onrender.com";
+const API = "http://localhost:5000/api/books";
 
 export default function BookList() {
   const [books, setBooks] = useState([]);
